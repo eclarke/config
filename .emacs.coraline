@@ -1,0 +1,117 @@
+;; ;; Org-mode options
+;; (add-to-list 'auto-mode-alist '("\\.org\\'" . org-mode)) ; not needed since Emacs 22.2
+;; (add-hook 'org-mode-hook 'turn-on-font-lock) ; not needed when global-font-lock-mode is on
+;; (global-set-key "\C-cl" 'org-store-link)
+;; (global-set-key "\C-ca" 'org-agenda)
+;; (global-set-key "\C-cb" 'org-iswitchb)
+;; ;; (setq org-mobile-directory "/ssh:ecl@microb215.med.upenn.edu:data/Notes/")
+;; (setq org-directory "~/data/Notes")
+;; (setq org-mobile-directory "~/data/.mobileNotes/")
+;; (setq org-mobile-inbox-for-pull "~/data/.mobileNotes/from-mobile.org")
+
+;; General options
+(setq-default fill-column 80)
+(column-number-mode 1)
+(setq make-backup-files t)
+(setq backup-directory-alist (quote ((".*" . "~/.emacs_backups/"))))
+
+;; Org-mode options (take 2)
+(add-hook 'org-mode-hook 'auto-fill-mode)
+
+;; Notebook functions
+(defun org-render-notebook ()
+  (interactive)
+  (save-buffer)
+  (shell-command "osascript ~/notebook/papers_bibtex_export.scpt")
+  (org-pandoc-export-to-latex-pdf))
+
+(defun ensure-in-vc-or-checkin ()
+  (interactive)
+  (if (file-exists-p (format "%s" (buffer-file-name)))
+      (progn (vc-next-action nil) (message "Committed"))
+    (ding) (message "File not checked in.")))
+
+(add-hook
+ 'org-mode-hook
+ (lambda()
+   (define-key org-mode-map
+     (kbd "<f5>") 'org-render-notebook)
+   (add-hook 'after-save-hook 'ensure-in-vc-or-checkin nil 'make-it-local)))
+
+;; el-get
+(add-to-list 'load-path "~/.emacs.d/el-get/el-get")
+
+(unless (require 'el-get nil 'noerror)
+  (with-current-buffer
+      (url-retrieve-synchronously
+       "https://raw.github.com/dimitri/el-get/master/el-get-install.el")
+    (goto-char (point-max))
+    (eval-print-last-sexp)))
+
+(add-to-list 'el-get-recipe-path "~/.emacs.d/el-get-user/recipes")
+(el-get 'sync)
+
+;; melpa
+(require 'package)
+(add-to-list 'package-archives
+  '("melpa" . "http://melpa.milkbox.net/packages/") t)
+(package-initialize)
+
+;; --- epylint ---
+;; Configure flymake for Python
+(setq pylint "epylint")
+(when (load "flymake" t)
+  (defun flymake-pylint-init ()
+    (let* ((temp-file (flymake-init-create-temp-buffer-copy
+                       'flymake-create-temp-inplace))
+           (local-file (file-relative-name
+                        temp-file
+                        (file-name-directory buffer-file-name))))
+      (list (expand-file-name pylint "") (list local-file))))
+  (add-to-list 'flymake-allowed-file-name-masks
+               '("\\.py\\'" flymake-pylint-init)))
+
+(defadvice flymake-post-syntax-check (before flymake-force-check-was-interrupted)
+    (setq flymake-check-was-interrupted t))
+(ad-activate 'flymake-post-syntax-check)
+
+;; Set as a minor mode for Python
+(add-hook 'python-mode-hook '(lambda () (flymake-mode)))
+
+;; Configure to wait a bit longer after edits before starting
+(setq-default flymake-no-changes-timeout '3)
+
+;; Keymaps to navigate to the errors
+(add-hook 'python-mode-hook '(lambda () (define-key python-mode-map "\C-cn" 'flymake-goto-next-error)))
+(add-hook 'python-mode-hook '(lambda () (define-key python-mode-map "\C-cp" 'flymake-goto-prev-error)))
+
+;; To avoid having to mouse hover for the error message, these functions make flymake error messages
+;; appear in the minibuffer
+(defun show-fly-err-at-point ()
+  "If the cursor is sitting on a flymake error, display the message in the minibuffer"
+  (require 'cl)
+  (interactive)
+  (let ((line-no (line-number-at-pos)))
+    (dolist (elem flymake-err-info)
+      (if (eq (car elem) line-no)
+      (let ((err (car (second elem))))
+        (message "%s" (flymake-ler-text err)))))))
+
+(add-hook 'post-command-hook 'show-fly-err-at-point)
+
+;; Confluence options
+(require 'confluence)
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(confluence-default-space-alist (list (cons confluence-url "ecl")))
+ '(confluence-url "http://microb98.med.upenn.edu/confluence/rpc/xmlrpc")
+ '(org-agenda-files (quote ("~/notebook/sarcoid-notes.org" "~/notebook/notes.org"))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
