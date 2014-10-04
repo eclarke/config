@@ -10,7 +10,7 @@
 (column-number-mode 1)
 (setq make-backup-files t)
 (setq backup-directory-alist (quote ((".*" . "~/.emacs_backups/"))))
-
+(setq inhibit-startup-message t)
 
 ;;-----------------------------------------------------------------------;;
 ;;  el-get
@@ -47,6 +47,6 @@
 ;;-----------------------------------------------------------------------;;
 ;;  External dependencies
 ;;-----------------------------------------------------------------------;;
-(condition-case ()
-    (load "howdoi")
-  (error nil))
+(ignore-errors
+  (load "~/config/emacs.d/howdoi")
+  (load "~/config/emacs.d/lab-notebook"))
